@@ -44,6 +44,10 @@ func (p *Preflight) SetEnabled(enabled bool) {
 	p.enabled = enabled
 }
 
+func (cf *Preflight) SetConfig(config preflight.CheckConfig) error {
+	return nil
+}
+
 func (p *Preflight) Run(ctx context.Context, changeGraph *ctldgraph.ChangeGraph) error {
 	dCli, err := p.depsFactory.DynamicClient(cmdcore.DynamicClientOpts{})
 	if err != nil {
