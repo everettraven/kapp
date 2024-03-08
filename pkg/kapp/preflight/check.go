@@ -11,7 +11,6 @@ import (
 
 // The following is the interface for Preflight checks
 type CheckConfig map[string]any
-type CheckFunc func(context.Context, *ctldgraph.ChangeGraph, CheckConfig) error
 
 type Check interface {
 	Enabled() bool
@@ -20,17 +19,21 @@ type Check interface {
 	Run(context.Context, *ctldgraph.ChangeGraph) error
 }
 
-// The following is an example/test Preflight check
+// The following is an example/test/mock Preflight check
+type setFunc func(CheckConfig) error
+type checkFunc func(context.Context, *ctldgraph.ChangeGraph) error
+
 type checkImpl struct {
 	enabled   bool
-	checkFunc CheckFunc
-	config    map[string]any
+	checkFunc checkFunc
+	setFunc   setFunc
 }
 
-func NewCheck(cf CheckFunc, enabled bool) Check {
+func NewCheck(cf checkFunc, sf setFunc, enabled bool) Check {
 	return &checkImpl{
 		enabled:   enabled,
 		checkFunc: cf,
+		setFunc:   sf,
 	}
 }
 
@@ -43,10 +46,12 @@ func (cf *checkImpl) SetEnabled(enabled bool) {
 }
 
 func (cf *checkImpl) SetConfig(config CheckConfig) error {
-	cf.config = config
+	if cf.setFunc != nil {
+		return cf.setFunc(config)
+	}
 	return nil
 }
 
 func (cf *checkImpl) Run(ctx context.Context, changeGraph *ctldgraph.ChangeGraph) error {
-	return cf.checkFunc(ctx, changeGraph, cf.config)
+	return cf.checkFunc(ctx, changeGraph)
 }

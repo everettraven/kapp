@@ -30,7 +30,7 @@ func TestRegistrySet(t *testing.T) {
 			preflights: ",",
 			registry: &Registry{
 				known: map[string]Check{
-					"some": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error { return nil }, true),
+					"some": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return nil }, nil, true),
 				},
 				enabledFlag: map[string]bool{},
 			},
@@ -41,7 +41,7 @@ func TestRegistrySet(t *testing.T) {
 			preflights: "nonexistent",
 			registry: &Registry{
 				known: map[string]Check{
-					"exists": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error { return nil }, true),
+					"exists": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return nil }, nil, true),
 				},
 				enabledFlag: map[string]bool{},
 			},
@@ -52,7 +52,7 @@ func TestRegistrySet(t *testing.T) {
 			preflights: "someCheck",
 			registry: &Registry{
 				known: map[string]Check{
-					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error { return nil }, true),
+					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return nil }, nil, true),
 				},
 				enabledFlag: map[string]bool{},
 			},
@@ -62,11 +62,7 @@ func TestRegistrySet(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.registry.Set(tc.preflights)
-			if tc.shouldErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error %v", err)
 		})
 	}
 }
@@ -85,9 +81,9 @@ func TestRegistryRun(t *testing.T) {
 			name: "preflight checks registered, disabled checks don't run",
 			registry: &Registry{
 				known: map[string]Check{
-					"disabledCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error {
+					"disabledCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error {
 						return errors.New("should be disabled")
-					}, false),
+					}, nil, false),
 				},
 			},
 		},
@@ -95,7 +91,7 @@ func TestRegistryRun(t *testing.T) {
 			name: "preflight checks registered, enabled check returns an error, error returned",
 			registry: &Registry{
 				known: map[string]Check{
-					"errorCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error { return errors.New("error") }, true),
+					"errorCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return errors.New("error") }, nil, true),
 				},
 			},
 			shouldErr: true,
@@ -104,7 +100,7 @@ func TestRegistryRun(t *testing.T) {
 			name: "preflight checks registered, enabled checks successful, no error returned",
 			registry: &Registry{
 				known: map[string]Check{
-					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error { return nil }, true),
+					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return nil }, nil, true),
 				},
 			},
 		},
@@ -113,7 +109,7 @@ func TestRegistryRun(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.registry.Run(nil, nil)
-			require.Equal(t, tc.shouldErr, err != nil)
+			require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error %v", err)
 		})
 	}
 }
@@ -129,12 +125,16 @@ func TestRegistryDirectConfig(t *testing.T) {
 			name: "preflight checks registered, no config",
 			registry: &Registry{
 				known: map[string]Check{
-					"disabledCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, cfg CheckConfig) error {
-						if cfg != nil {
-							return errors.New("config should not be present")
-						}
-						return nil
-					}, true),
+					"disabledCheck": NewCheck(
+						nil,
+						func(cfg CheckConfig) error {
+							if cfg != nil {
+								return errors.New("config should not be present")
+							}
+							return nil
+						},
+						true,
+					),
 				},
 			},
 		},
@@ -142,19 +142,23 @@ func TestRegistryDirectConfig(t *testing.T) {
 			name: "preflight checks registered, config set, no error",
 			registry: &Registry{
 				known: map[string]Check{
-					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, cfg CheckConfig) error {
-						if cfg == nil {
-							return errors.New("config should be present")
-						}
-						v, ok := cfg["foo"]
-						if !ok {
-							return errors.New("foo config not present")
-						}
-						if v != "bar" {
-							return errors.New("foo should equal 'bar'")
-						}
-						return nil
-					}, true),
+					"someCheck": NewCheck(
+						nil,
+						func(cfg CheckConfig) error {
+							if cfg == nil {
+								return errors.New("config should be present")
+							}
+							v, ok := cfg["foo"]
+							if !ok {
+								return errors.New("foo config not present")
+							}
+							if v != "bar" {
+								return errors.New("foo should equal 'bar'")
+							}
+							return nil
+						},
+						true,
+					),
 				},
 			},
 			config: map[string]any{
@@ -165,16 +169,20 @@ func TestRegistryDirectConfig(t *testing.T) {
 			name: "preflight checks registered, unexpected config set, no error",
 			registry: &Registry{
 				known: map[string]Check{
-					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, cfg CheckConfig) error {
-						if cfg == nil {
-							return errors.New("config should be present")
-						}
-						_, ok := cfg["foobar"]
-						if ok {
-							return errors.New("foo config should not present")
-						}
-						return nil
-					}, true),
+					"someCheck": NewCheck(
+						nil,
+						func(cfg CheckConfig) error {
+							if cfg == nil {
+								return errors.New("config should be present")
+							}
+							_, ok := cfg["foobar"]
+							if ok {
+								return errors.New("foo config should not present")
+							}
+							return nil
+						},
+						true,
+					),
 				},
 			},
 			config: map[string]any{
@@ -186,13 +194,8 @@ func TestRegistryDirectConfig(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, check := range tc.registry.known {
-				_ = check.SetConfig(tc.config)
-			}
-			err := tc.registry.Run(nil, nil)
-			if tc.shouldErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
+				err := check.SetConfig(tc.config)
+				require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error %v", err)
 			}
 		})
 	}
@@ -202,26 +205,29 @@ func TestRegistryConfig(t *testing.T) {
 	testCases := []struct {
 		name      string
 		registry  *Registry
-		configErr bool
 		shouldErr bool
 	}{
 		{
 			name: "preflight checks registered, config set, no error",
 			registry: &Registry{
 				known: map[string]Check{
-					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, cfg CheckConfig) error {
-						if cfg == nil {
-							return errors.New("config should be present")
-						}
-						v, ok := cfg["foo"]
-						if !ok {
-							return errors.New("foo config not present")
-						}
-						if v != "bar" {
-							return errors.New("foo should equal 'bar'")
-						}
-						return nil
-					}, true),
+					"someCheck": NewCheck(
+						nil,
+						func(cfg CheckConfig) error {
+							if cfg == nil {
+								return errors.New("config should be present")
+							}
+							v, ok := cfg["foo"]
+							if !ok {
+								return errors.New("foo config not present")
+							}
+							if v != "bar" {
+								return errors.New("foo should equal 'bar'")
+							}
+							return nil
+						},
+						true,
+					),
 				},
 			},
 		},
@@ -229,16 +235,20 @@ func TestRegistryConfig(t *testing.T) {
 			name: "preflight checks registered, unexpected config set, error",
 			registry: &Registry{
 				known: map[string]Check{
-					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, cfg CheckConfig) error {
-						if cfg == nil {
-							return errors.New("config should be present")
-						}
-						_, ok := cfg["foobar"]
-						if ok {
-							return errors.New("foobar config should not present")
-						}
-						return nil
-					}, true),
+					"someCheck": NewCheck(
+						nil,
+						func(cfg CheckConfig) error {
+							if cfg == nil {
+								return errors.New("config should be present")
+							}
+							_, ok := cfg["foobar"]
+							if ok {
+								return errors.New("foobar config should not present")
+							}
+							return nil
+						},
+						true,
+					),
 				},
 			},
 		},
@@ -246,15 +256,19 @@ func TestRegistryConfig(t *testing.T) {
 			name: "preflight checks registered, unexpected preflight check set, error",
 			registry: &Registry{
 				known: map[string]Check{
-					"otherCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, cfg CheckConfig) error {
-						if cfg != nil {
-							return errors.New("config should not be present")
-						}
-						return nil
-					}, true),
+					"otherCheck": NewCheck(
+						nil,
+						func(cfg CheckConfig) error {
+							if cfg != nil {
+								return errors.New("config should not be present")
+							}
+							return nil
+						},
+						true,
+					),
 				},
 			},
-			configErr: true,
+			shouldErr: true,
 		},
 	}
 	configYAML := `---
@@ -274,17 +288,7 @@ preflightRules:
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.registry.SetConfig(conf)
-			if tc.configErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-			err = tc.registry.Run(nil, nil)
-			if tc.shouldErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			require.Equalf(t, tc.shouldErr, err != nil, "Invalid error %v", err)
 		})
 	}
 }

@@ -44,7 +44,7 @@ func (p *Preflight) SetEnabled(enabled bool) {
 	p.enabled = enabled
 }
 
-func (cf *Preflight) SetConfig(config preflight.CheckConfig) error {
+func (cf *Preflight) SetConfig(_ preflight.CheckConfig) error {
 	return nil
 }
 
