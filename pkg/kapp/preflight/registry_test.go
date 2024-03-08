@@ -30,7 +30,9 @@ func TestRegistrySet(t *testing.T) {
 			preflights: ",",
 			registry: &Registry{
 				known: map[string]Check{
-					"some": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return nil }, nil, true),
+					"some": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error {
+						return nil
+					}, nil, true),
 				},
 				enabledFlag: map[string]bool{},
 			},
@@ -41,7 +43,9 @@ func TestRegistrySet(t *testing.T) {
 			preflights: "nonexistent",
 			registry: &Registry{
 				known: map[string]Check{
-					"exists": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return nil }, nil, true),
+					"exists": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error {
+						return nil
+					}, nil, true),
 				},
 				enabledFlag: map[string]bool{},
 			},
@@ -52,7 +56,9 @@ func TestRegistrySet(t *testing.T) {
 			preflights: "someCheck",
 			registry: &Registry{
 				known: map[string]Check{
-					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return nil }, nil, true),
+					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error {
+						return nil
+					}, nil, true),
 				},
 				enabledFlag: map[string]bool{},
 			},
@@ -62,7 +68,7 @@ func TestRegistrySet(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.registry.Set(tc.preflights)
-			require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error %v", err)
+			require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error: %v", err)
 		})
 	}
 }
@@ -81,7 +87,7 @@ func TestRegistryRun(t *testing.T) {
 			name: "preflight checks registered, disabled checks don't run",
 			registry: &Registry{
 				known: map[string]Check{
-					"disabledCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error {
+					"disabledCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error {
 						return errors.New("should be disabled")
 					}, nil, false),
 				},
@@ -91,7 +97,9 @@ func TestRegistryRun(t *testing.T) {
 			name: "preflight checks registered, enabled check returns an error, error returned",
 			registry: &Registry{
 				known: map[string]Check{
-					"errorCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return errors.New("error") }, nil, true),
+					"errorCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error {
+						return errors.New("error")
+					}, nil, true),
 				},
 			},
 			shouldErr: true,
@@ -100,7 +108,9 @@ func TestRegistryRun(t *testing.T) {
 			name: "preflight checks registered, enabled checks successful, no error returned",
 			registry: &Registry{
 				known: map[string]Check{
-					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph) error { return nil }, nil, true),
+					"someCheck": NewCheck(func(_ context.Context, _ *diffgraph.ChangeGraph, _ CheckConfig) error {
+						return nil
+					}, nil, true),
 				},
 			},
 		},
@@ -109,103 +119,17 @@ func TestRegistryRun(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.registry.Run(nil, nil)
-			require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error %v", err)
-		})
-	}
-}
-
-func TestRegistryDirectConfig(t *testing.T) {
-	testCases := []struct {
-		name      string
-		registry  *Registry
-		config    map[string]any
-		shouldErr bool
-	}{
-		{
-			name: "preflight checks registered, no config",
-			registry: &Registry{
-				known: map[string]Check{
-					"disabledCheck": NewCheck(
-						nil,
-						func(cfg CheckConfig) error {
-							if cfg != nil {
-								return errors.New("config should not be present")
-							}
-							return nil
-						},
-						true,
-					),
-				},
-			},
-		},
-		{
-			name: "preflight checks registered, config set, no error",
-			registry: &Registry{
-				known: map[string]Check{
-					"someCheck": NewCheck(
-						nil,
-						func(cfg CheckConfig) error {
-							if cfg == nil {
-								return errors.New("config should be present")
-							}
-							v, ok := cfg["foo"]
-							if !ok {
-								return errors.New("foo config not present")
-							}
-							if v != "bar" {
-								return errors.New("foo should equal 'bar'")
-							}
-							return nil
-						},
-						true,
-					),
-				},
-			},
-			config: map[string]any{
-				"foo": "bar",
-			},
-		},
-		{
-			name: "preflight checks registered, unexpected config set, no error",
-			registry: &Registry{
-				known: map[string]Check{
-					"someCheck": NewCheck(
-						nil,
-						func(cfg CheckConfig) error {
-							if cfg == nil {
-								return errors.New("config should be present")
-							}
-							_, ok := cfg["foobar"]
-							if ok {
-								return errors.New("foo config should not present")
-							}
-							return nil
-						},
-						true,
-					),
-				},
-			},
-			config: map[string]any{
-				"foo": "bar",
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			for _, check := range tc.registry.known {
-				err := check.SetConfig(tc.config)
-				require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error %v", err)
-			}
+			require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error: %v", err)
 		})
 	}
 }
 
 func TestRegistryConfig(t *testing.T) {
 	testCases := []struct {
-		name      string
-		registry  *Registry
-		shouldErr bool
+		name       string
+		registry   *Registry
+		configYaml string
+		shouldErr  bool
 	}{
 		{
 			name: "preflight checks registered, config set, no error",
@@ -224,24 +148,7 @@ func TestRegistryConfig(t *testing.T) {
 							if v != "bar" {
 								return errors.New("foo should equal 'bar'")
 							}
-							return nil
-						},
-						true,
-					),
-				},
-			},
-		},
-		{
-			name: "preflight checks registered, unexpected config set, error",
-			registry: &Registry{
-				known: map[string]Check{
-					"someCheck": NewCheck(
-						nil,
-						func(cfg CheckConfig) error {
-							if cfg == nil {
-								return errors.New("config should be present")
-							}
-							_, ok := cfg["foobar"]
+							_, ok = cfg["foobar"]
 							if ok {
 								return errors.New("foobar config should not present")
 							}
@@ -251,12 +158,20 @@ func TestRegistryConfig(t *testing.T) {
 					),
 				},
 			},
+			configYaml: `---
+apiVersion: kapp.k14s.io/v1alpha1
+kind: Config
+preflightRules:
+- name: someCheck
+  config:
+    foo: bar
+`,
 		},
 		{
 			name: "preflight checks registered, unexpected preflight check set, error",
 			registry: &Registry{
 				known: map[string]Check{
-					"otherCheck": NewCheck(
+					"someCheck": NewCheck(
 						nil,
 						func(cfg CheckConfig) error {
 							if cfg != nil {
@@ -268,27 +183,47 @@ func TestRegistryConfig(t *testing.T) {
 					),
 				},
 			},
+			configYaml: `---
+apiVersion: kapp.k14s.io/v1alpha1
+kind: Config
+preflightRules:
+- name: otherCheck
+  config:
+    foo: bar
+`,
 			shouldErr: true,
 		},
-	}
-	configYAML := `---
+		{
+			name: "preflight checks registered, duplicate config entry, error",
+			registry: &Registry{
+				known: map[string]Check{
+					"someCheck": NewCheck(nil, nil, true),
+				},
+			},
+			configYaml: `---
 apiVersion: kapp.k14s.io/v1alpha1
 kind: Config
 preflightRules:
 - name: someCheck
   config:
     foo: bar
-`
-
-	configRs, err := ctlres.NewFileResource(ctlres.NewBytesSource([]byte(configYAML))).Resources()
-	require.NoErrorf(t, err, "Parsing resources")
-	_, conf, err := ctlconf.NewConfFromResources(configRs)
-	require.NoErrorf(t, err, "Parsing config")
+- name: someCheck
+  config:
+    bar: foo
+`,
+			shouldErr: true,
+		},
+	}
 
 	for _, tc := range testCases {
+		configRs, err := ctlres.NewFileResource(ctlres.NewBytesSource([]byte(tc.configYaml))).Resources()
+		require.NoErrorf(t, err, "Parsing resources")
+		_, conf, err := ctlconf.NewConfFromResources(configRs)
+		require.NoErrorf(t, err, "Parsing config")
+
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.registry.SetConfig(conf)
-			require.Equalf(t, tc.shouldErr, err != nil, "Invalid error %v", err)
+			require.Equalf(t, tc.shouldErr, err != nil, "Unexpected error: %v", err)
 		})
 	}
 }

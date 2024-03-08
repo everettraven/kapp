@@ -9,8 +9,9 @@ import (
 	ctldgraph "github.com/vmware-tanzu/carvel-kapp/pkg/kapp/diffgraph"
 )
 
-// The following is the interface for Preflight checks
+type CheckFunc func(context.Context, *ctldgraph.ChangeGraph, CheckConfig) error
 type CheckConfig map[string]any
+type ConfigFunc func(CheckConfig) error
 
 type Check interface {
 	Enabled() bool
@@ -19,21 +20,19 @@ type Check interface {
 	Run(context.Context, *ctldgraph.ChangeGraph) error
 }
 
-// The following is an example/test/mock Preflight check
-type setFunc func(CheckConfig) error
-type checkFunc func(context.Context, *ctldgraph.ChangeGraph) error
-
 type checkImpl struct {
 	enabled   bool
-	checkFunc checkFunc
-	setFunc   setFunc
+	checkFunc CheckFunc
+
+	config     CheckConfig
+	configFunc ConfigFunc
 }
 
-func NewCheck(cf checkFunc, sf setFunc, enabled bool) Check {
+func NewCheck(cf CheckFunc, sf ConfigFunc, enabled bool) Check {
 	return &checkImpl{
-		enabled:   enabled,
-		checkFunc: cf,
-		setFunc:   sf,
+		enabled:    enabled,
+		checkFunc:  cf,
+		configFunc: sf,
 	}
 }
 
@@ -46,12 +45,13 @@ func (cf *checkImpl) SetEnabled(enabled bool) {
 }
 
 func (cf *checkImpl) SetConfig(config CheckConfig) error {
-	if cf.setFunc != nil {
-		return cf.setFunc(config)
+	cf.config = config
+	if cf.configFunc != nil {
+		return cf.configFunc(config)
 	}
 	return nil
 }
 
 func (cf *checkImpl) Run(ctx context.Context, changeGraph *ctldgraph.ChangeGraph) error {
-	return cf.checkFunc(ctx, changeGraph)
+	return cf.checkFunc(ctx, changeGraph, cf.config)
 }

@@ -17,7 +17,8 @@ const preflightFlag = "preflight"
 
 // Registry is a collection of preflight checks
 type Registry struct {
-	known       map[string]Check
+	known map[string]Check
+	// Stores the enabled values from the command line
 	enabledFlag map[string]bool
 }
 
