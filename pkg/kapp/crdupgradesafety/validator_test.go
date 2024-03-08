@@ -62,3 +62,45 @@ func TestValidator(t *testing.T) {
 		})
 	}
 }
+
+func TestNoScopeChangeValidateFunc(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		old         v1.CustomResourceDefinition
+		new         v1.CustomResourceDefinition
+		shouldError bool
+	}{
+		{
+			name: "no scope change, no error",
+			old: v1.CustomResourceDefinition{
+				Spec: v1.CustomResourceDefinitionSpec{
+					Scope: v1.ClusterScoped,
+				},
+			},
+			new: v1.CustomResourceDefinition{
+				Spec: v1.CustomResourceDefinitionSpec{
+					Scope: v1.ClusterScoped,
+				},
+			},
+		},
+		{
+			name: "scope change, error",
+			old: v1.CustomResourceDefinition{
+				Spec: v1.CustomResourceDefinitionSpec{
+					Scope: v1.ClusterScoped,
+				},
+			},
+			new: v1.CustomResourceDefinition{
+				Spec: v1.CustomResourceDefinitionSpec{
+					Scope: v1.NamespaceScoped,
+				},
+			},
+			shouldError: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := NoScopeChangeValidateFunc(tc.old, tc.new)
+			require.Equal(t, tc.shouldError, err != nil)
+		})
+	}
+}

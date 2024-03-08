@@ -12,9 +12,9 @@ import (
 	ctldgraph "github.com/vmware-tanzu/carvel-kapp/pkg/kapp/diffgraph"
 	"github.com/vmware-tanzu/carvel-kapp/pkg/kapp/preflight"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var _ preflight.Check = (*Preflight)(nil)
@@ -32,7 +32,11 @@ func NewPreflight(df cmdcore.DepsFactory, enabled bool) *Preflight {
 	return &Preflight{
 		depsFactory: df,
 		enabled:     enabled,
-		validator:   &Validator{},
+		validator: &Validator{
+			Validations: []Validation{
+				NewValidationFunc("NoScopeChange", NoScopeChangeValidateFunc),
+			},
+		},
 	}
 }
 
@@ -77,12 +81,16 @@ func (p *Preflight) Run(ctx context.Context, changeGraph *ctldgraph.ChangeGraph)
 		}
 
 		oldCRD := &v1.CustomResourceDefinition{}
-		if err := scheme.Scheme.Convert(uOldCRD, oldCRD, nil); err != nil {
+		s := runtime.NewScheme()
+		if err := v1.AddToScheme(s); err != nil {
+			return fmt.Errorf("adding apiextension apis to scheme: %w", err)
+		}
+		if err := s.Convert(uOldCRD, oldCRD, nil); err != nil {
 			return fmt.Errorf("couldn't convert old CRD resource to a CRD object: %w", err)
 		}
 
 		newCRD := &v1.CustomResourceDefinition{}
-		if err := res.AsTypedObj(newCRD); err != nil {
+		if err := res.AsUncheckedTypedObj(newCRD); err != nil {
 			return fmt.Errorf("couldn't convert new CRD resource to a CRD object: %w", err)
 		}
 
