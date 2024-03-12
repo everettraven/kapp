@@ -66,3 +66,10 @@ func (v *Validator) Validate(old, new v1.CustomResourceDefinition) error {
 	}
 	return nil
 }
+
+var NoScopeChangeValidateFunc ValidateFunc = func(old, new v1.CustomResourceDefinition) error {
+	if old.Spec.Scope != new.Spec.Scope {
+		return fmt.Errorf("scope changed from %q to %q", old.Spec.Scope, new.Spec.Scope)
+	}
+	return nil
+}
