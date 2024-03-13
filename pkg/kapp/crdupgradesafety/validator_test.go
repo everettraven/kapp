@@ -63,7 +63,7 @@ func TestValidator(t *testing.T) {
 	}
 }
 
-func TestNoScopeChangeValidateFunc(t *testing.T) {
+func TestNoScopeChange(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		old         v1.CustomResourceDefinition
@@ -99,7 +99,77 @@ func TestNoScopeChangeValidateFunc(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := NoScopeChangeValidateFunc(tc.old, tc.new)
+			err := NoScopeChange(tc.old, tc.new)
+			require.Equal(t, tc.shouldError, err != nil)
+		})
+	}
+}
+
+func TestNoStoredVersionRemoved(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		old         v1.CustomResourceDefinition
+		new         v1.CustomResourceDefinition
+		shouldError bool
+	}{
+		{
+			name: "no stored versions, no error",
+			new: v1.CustomResourceDefinition{
+				Spec: v1.CustomResourceDefinitionSpec{
+					Versions: []v1.CustomResourceDefinitionVersion{
+						{
+							Name: "v1alpha1",
+						},
+					},
+				},
+			},
+			old: v1.CustomResourceDefinition{},
+		},
+		{
+			name: "stored versions, no stored version removed, no error",
+			new: v1.CustomResourceDefinition{
+				Spec: v1.CustomResourceDefinitionSpec{
+					Versions: []v1.CustomResourceDefinitionVersion{
+						{
+							Name: "v1alpha1",
+						},
+						{
+							Name: "v1alpha2",
+						},
+					},
+				},
+			},
+			old: v1.CustomResourceDefinition{
+				Status: v1.CustomResourceDefinitionStatus{
+					StoredVersions: []string{
+						"v1alpha1",
+					},
+				},
+			},
+		},
+		{
+			name: "stored versions, stored version removed, error",
+			new: v1.CustomResourceDefinition{
+				Spec: v1.CustomResourceDefinitionSpec{
+					Versions: []v1.CustomResourceDefinitionVersion{
+						{
+							Name: "v1alpha2",
+						},
+					},
+				},
+			},
+			old: v1.CustomResourceDefinition{
+				Status: v1.CustomResourceDefinitionStatus{
+					StoredVersions: []string{
+						"v1alpha1",
+					},
+				},
+			},
+			shouldError: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := NoStoredVersionRemoved(tc.old, tc.new)
 			require.Equal(t, tc.shouldError, err != nil)
 		})
 	}

@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPreflightCRDUpgradeSafetyScopeChange(t *testing.T) {
+func TestPreflightCRDUpgradeSafetyStoredVersionRemoved(t *testing.T) {
 	env := BuildEnv(t)
 	logger := Logger{}
 	kapp := Kapp{t, env.Namespace, env.KappBinaryPath, logger}
 	kubectl := Kubectl{t, env.Namespace, logger}
 
-	testName := "preflightcrdupgradesafetyscopechange"
+	testName := "preflightcrdupgradesafetystoredversionremoved"
 
 	base := `
 ---
@@ -83,9 +83,9 @@ spec:
     listKind: MemcachedList
     plural: memcacheds
     singular: memcached
-  scope: Cluster
+  scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1alpha2
     schema:
       openAPIV3Schema:
         properties:
@@ -107,10 +107,10 @@ spec:
 `
 
 	update = strings.ReplaceAll(update, "__test-name__", testName)
-	logger.Section("deploy app with CRD update that changes scope from namespace to cluster, preflight check enabled, should error", func() {
+	logger.Section("deploy app with CRD that removes an existing stored version, preflight check enabled, should error", func() {
 		_, err := kapp.RunWithOpts([]string{"deploy", "--preflight=CRDUpgradeSafety", "-a", appName, "-f", "-"},
 			RunOpts{StdinReader: strings.NewReader(update), AllowError: true})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "\"NoScopeChange\" validation failed: scope changed from \"Namespaced\" to \"Cluster\"")
+		require.Contains(t, err.Error(), "\"NoStoredVersionRemoved\" validation failed: stored version \"v1alpha1\" removed")
 	})
 }

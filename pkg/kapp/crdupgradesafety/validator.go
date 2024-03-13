@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // Validation is a representation of a validation to run
@@ -67,9 +68,26 @@ func (v *Validator) Validate(old, new v1.CustomResourceDefinition) error {
 	return nil
 }
 
-var NoScopeChangeValidateFunc ValidateFunc = func(old, new v1.CustomResourceDefinition) error {
+func NoScopeChange(old, new v1.CustomResourceDefinition) error {
 	if old.Spec.Scope != new.Spec.Scope {
 		return fmt.Errorf("scope changed from %q to %q", old.Spec.Scope, new.Spec.Scope)
 	}
+	return nil
+}
+
+func NoStoredVersionRemoved(old, new v1.CustomResourceDefinition) error {
+	newVersions := sets.New[string]()
+	for _, version := range new.Spec.Versions {
+		if !newVersions.Has(version.Name) {
+			newVersions.Insert(version.Name)
+		}
+	}
+
+	for _, storedVersion := range old.Status.StoredVersions {
+		if !newVersions.Has(storedVersion) {
+			return fmt.Errorf("stored version %q removed", storedVersion)
+		}
+	}
+
 	return nil
 }
