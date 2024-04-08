@@ -6,7 +6,9 @@ package crdupgradesafety
 import (
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/openshift/crd-schema-checker/pkg/manifestcomparators"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -90,4 +92,22 @@ func NoStoredVersionRemoved(old, new v1.CustomResourceDefinition) error {
 	}
 
 	return nil
+}
+
+func NoNewRequiredField(old, new v1.CustomResourceDefinition) error {
+    reg := manifestcomparators.NewRegistry()
+    err := reg.AddComparator(manifestcomparators.NoNewRequiredFields())
+    if err != nil {
+        return err
+    }
+
+    results, errs := reg.Compare(&old, &new)
+    if len(errs) > 0 {
+        return errors.Join(errs...)
+    }
+
+    if len(results[0].Errors) > 0 {
+        return errors.New(strings.Join(results[0].Errors, "\n"))
+    }
+    return nil
 }
