@@ -106,8 +106,16 @@ func NoNewRequiredField(old, new v1.CustomResourceDefinition) error {
         return errors.Join(errs...)
     }
 
-    if len(results[0].Errors) > 0 {
-        return errors.New(strings.Join(results[0].Errors, "\n"))
+    errSet := []error{}
+
+    for _, result := range results {
+        if len(result.Errors) > 0 {
+            errSet = append(errSet, errors.New(strings.Join(result.Errors, "\n")))
+        }
     }
+    if len(errSet) > 0 {
+        return errors.Join(errSet...)
+    }
+
     return nil
 }
