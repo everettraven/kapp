@@ -113,6 +113,15 @@ func RequiredFieldChangeValidation(diff FieldDiff) (bool, error) {
 	return handled(), nil
 }
 
+// MinimumChangeValidation adds a validation check to ensure that
+// existing fields can have their minimum constraints updated in a CRD schema
+// based on the following:
+// - No minimum constraint can be added if one did not exist previously
+// - Minimum constraints can not increase in value
+// This function returns:
+// - A boolean representation of whether or not the change
+// has been fully handled (i.e. the only change was to minimum constraints)
+// - An error if either of the above criteria are not met
 func MinimumChangeValidation(diff FieldDiff) (bool, error) {
 	handled := func() bool {
 		diff.Old.Minimum = nil
@@ -136,6 +145,15 @@ func MinimumChangeValidation(diff FieldDiff) (bool, error) {
 	}
 }
 
+// MinimumLengthChangeValidation adds a validation check to ensure that
+// existing fields can have their minimum length constraints updated in a CRD schema
+// based on the following:
+// - No minimum length constraint can be added if one did not exist previously
+// - Minimum length constraints can not increase in value
+// This function returns:
+// - A boolean representation of whether or not the change
+// has been fully handled (i.e. the only change was to minimum length constraints)
+// - An error if either of the above criteria are not met
 func MinimumLengthChangeValidation(diff FieldDiff) (bool, error) {
 	handled := func() bool {
 		diff.Old.MinLength = nil
@@ -159,6 +177,15 @@ func MinimumLengthChangeValidation(diff FieldDiff) (bool, error) {
 	}
 }
 
+// MinimumItemsChangeValidation adds a validation check to ensure that
+// existing fields can have their minimum item constraints updated in a CRD schema
+// based on the following:
+// - No minimum item constraint can be added if one did not exist previously
+// - Minimum item constraints can not increase in value
+// This function returns:
+// - A boolean representation of whether or not the change
+// has been fully handled (i.e. the only change was to minimum item constraints)
+// - An error if either of the above criteria are not met
 func MinimumItemsChangeValidation(diff FieldDiff) (bool, error) {
 	handled := func() bool {
 		diff.Old.MinItems = nil
@@ -182,6 +209,15 @@ func MinimumItemsChangeValidation(diff FieldDiff) (bool, error) {
 	}
 }
 
+// MinimumPropertiesChangeValidation adds a validation check to ensure that
+// existing fields can have their minimum properties constraints updated in a CRD schema
+// based on the following:
+// - No minimum properties constraint can be added if one did not exist previously
+// - Minimum properties constraints can not increase in value
+// This function returns:
+// - A boolean representation of whether or not the change
+// has been fully handled (i.e. the only change was to minimum properties constraints)
+// - An error if either of the above criteria are not met
 func MinimumPropertiesChangeValidation(diff FieldDiff) (bool, error) {
 	handled := func() bool {
 		diff.Old.MinProperties = nil
