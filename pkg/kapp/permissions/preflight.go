@@ -27,11 +27,11 @@ type Preflight struct {
 
 const (
 	PermissionValidatorTypeSelfSubjectAccessReview = "SelfSubjectAccessReview"
-	PermissionValidatorTypeSelfSubjectRulesReview  = "SelfSubjectRulesReviews"
+	PermissionValidatorTypeSelfSubjectRulesReview  = "SelfSubjectRulesReview"
 )
 
 type PreflightConfig struct {
-	PermissionValidatorType string `json:"permissionValidatorResource"`
+	PermissionValidatorResource string `json:"permissionValidatorResource"`
 }
 
 func NewPreflight(depsFactory cmdcore.DepsFactory, enabled bool) preflight.Check {
@@ -39,7 +39,7 @@ func NewPreflight(depsFactory cmdcore.DepsFactory, enabled bool) preflight.Check
 		depsFactory: depsFactory,
 		enabled:     enabled,
 		config: &PreflightConfig{
-			PermissionValidatorType: PermissionValidatorTypeSelfSubjectAccessReview,
+			PermissionValidatorResource: PermissionValidatorTypeSelfSubjectAccessReview,
 		},
 	}
 }
@@ -64,14 +64,14 @@ func (p *Preflight) SetConfig(cfg preflight.CheckConfig) error {
 		return fmt.Errorf("parsing permissions preflight config: %w", err)
 	}
 
-	switch pCfg.PermissionValidatorType {
-	case PermissionValidatorTypeSelfSubjectAccessReview:
-	case PermissionValidatorTypeSelfSubjectRulesReview:
+	switch pCfg.PermissionValidatorResource {
+	// Valid, do nothing
+	case PermissionValidatorTypeSelfSubjectAccessReview, PermissionValidatorTypeSelfSubjectRulesReview:
 	// Default to using SelfSubjectAccessReview
 	case "":
-		pCfg.PermissionValidatorType = PermissionValidatorTypeSelfSubjectAccessReview
+		pCfg.PermissionValidatorResource = PermissionValidatorTypeSelfSubjectAccessReview
 	default:
-		return fmt.Errorf("unknown permissionValidatorType %q", pCfg.PermissionValidatorType)
+		return fmt.Errorf("unknown permissionValidatorType %q", pCfg.PermissionValidatorResource)
 	}
 	return nil
 }
@@ -88,7 +88,7 @@ func (p *Preflight) Run(ctx context.Context, changeGraph *ctldgraph.ChangeGraph)
 	}
 
 	var permissionValidator PermissionValidator
-	switch p.config.PermissionValidatorType {
+	switch p.config.PermissionValidatorResource {
 	case PermissionValidatorTypeSelfSubjectAccessReview:
 		permissionValidator = NewSelfSubjectAccessReviewValidator(client.AuthorizationV1().SelfSubjectAccessReviews())
 	case PermissionValidatorTypeSelfSubjectRulesReview:
